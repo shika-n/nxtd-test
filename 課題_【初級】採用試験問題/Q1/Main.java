@@ -15,7 +15,7 @@ public class Main {
 			return N;
 		}
 
-		public ArrayList<Integer> getUsagas() {
+		public ArrayList<Integer> getUsages() {
 			return usages;
 		}
 
@@ -45,7 +45,7 @@ public class Main {
 		int balance = input.getBalance();
 		int points = 0;
 
-		for (int usage : input.getUsagas()) {
+		for (int usage : input.getUsages()) {
 			if (points >= usage) {
 				points -= usage;
 			} else {
