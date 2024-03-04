@@ -16,62 +16,10 @@ public class Main {
 		}
 	}
 
-	private static class Pair<M, N> {
-		public M first;
-		public N second;
-
-		public Pair(M first, N second) {
-			this.first = first;
-			this.second = second;
-		}
-	}
-
-	private class Job {
-		private int hoursSpent;
-		private int currentSpeed;
-		private int linesToWriteLeft;
-
-		public Job (int hoursSpent, int currentSpeed, int linesToWriteLeft) {
-			this.hoursSpent = hoursSpent;
-			this.currentSpeed = currentSpeed;
-			this.linesToWriteLeft = linesToWriteLeft;
-		}
-
-		public void develop(Rule rule) {
-			linesToWriteLeft -= currentSpeed;
-			currentSpeed = Math.max(0, currentSpeed - rule.reduceAfterDev);
-			hoursSpent += 1;
-		}
-
-		public void sleep(Rule rule) {
-			hoursSpent += 3;
-			currentSpeed = Math.min(currentSpeed + rule.gainAfterSleep, rule.maxSpeed);
-		}
-
-		public static Pair<Integer, Integer> getPotentialAndHoursTaken(Rule rule, int speed) {
-			int pot = 0;
-			int hoursTaken = 0;
-
-			while (speed > 0) {
-				pot += speed;
-				speed -= rule.reduceAfterDev;
-				hoursTaken += 1;
-			}
-
-			return new Pair<>(Integer.valueOf(pot), Integer.valueOf(hoursTaken));
-		}
-
-		public int getHoursSpent() {
-			return hoursSpent;
-		}
-
-		public int getCurrentSpeed() {
-			return currentSpeed;
-		}
-
-		public int getLineToWriteLeft() {
-			return linesToWriteLeft;
-		}
+	private enum State {
+		ROOT,
+		SLEEP,
+		DEVELOP
 	}
 
 	private Rule getInput() {
@@ -88,32 +36,37 @@ public class Main {
 		);
 	}
 
+	private int getHours(Rule rule, int hoursSpent, int currentSpeed, int linesLeftToWrite, State state) {
+		if (currentSpeed <= 0) { // Force sleep
+			hoursSpent += 3;
+			currentSpeed = rule.gainAfterSleep;
+		} else if (currentSpeed >= rule.maxSpeed) { // Force develop
+			hoursSpent += 1;
+			linesLeftToWrite -= currentSpeed;
+			currentSpeed = Math.max(currentSpeed - rule.reduceAfterDev, 0);
+		} else if (state == State.SLEEP) { // sleep
+			hoursSpent += 3;
+			currentSpeed = Math.min(currentSpeed + rule.gainAfterSleep, rule.maxSpeed);
+		} else if (state == State.DEVELOP) { // develop
+			hoursSpent += 1;
+			linesLeftToWrite -= currentSpeed;
+			currentSpeed = Math.max(currentSpeed - rule.reduceAfterDev, 0);
+		}
+
+		if (linesLeftToWrite <= 0) {
+			return hoursSpent;
+		}
+
+		return Math.min(
+			getHours(rule, hoursSpent, currentSpeed, linesLeftToWrite, State.SLEEP),
+			getHours(rule, hoursSpent, currentSpeed, linesLeftToWrite, State.DEVELOP)
+		);
+	}
+
 	public Main() {
 		Rule rule = getInput();
 
-		Job job = new Job(0, rule.maxSpeed, rule.target);
-
-		while (job.linesToWriteLeft > 0) {
-			if (job.currentSpeed <= 0) {
-				job.sleep(rule);;
-			}
-
-			Pair<Integer, Integer> currentPotentialHours = Job.getPotentialAndHoursTaken(rule, job.getCurrentSpeed());
-			int currentPotential = currentPotentialHours.first;
-			float currentEfficiency = 1.0f * currentPotential / currentPotentialHours.second;
-			
-			Pair<Integer, Integer> sleepPotentialHours = Job.getPotentialAndHoursTaken(rule, Math.min(job.getCurrentSpeed() + rule.gainAfterSleep, rule.maxSpeed));
-			int potentialAfterSleep = sleepPotentialHours.first;
-			float sleepEfficiency = 1.0f * potentialAfterSleep / (sleepPotentialHours.second + 3);
-
-			if (currentPotential < job.getLineToWriteLeft() && sleepEfficiency >= currentEfficiency) {
-				job.sleep(rule);
-			} else {
-				job.develop(rule);
-			}
-		}
-
-		System.out.println(job.getHoursSpent());
+		System.out.println(getHours(rule, 0, rule.maxSpeed, rule.target, State.ROOT));
 	}
 
 	public static void main(String[] args) {
